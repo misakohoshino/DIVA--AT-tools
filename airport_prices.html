@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>機場群 派單價格表</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --navy: #0F1923;
+    --card: #162030;
+    --border: #1E3040;
+    --accent: #F5C218;
+    --accent2: #E8861A;
+    --green: #2ECC71;
+    --red: #E74C3C;
+    --blue: #3498DB;
+    --purple: #9B59B6;
+    --text: #E8EDF2;
+    --muted: #6B8299;
+    --sub: #8FA3B8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--navy);
+    color: var(--text);
+    font-family: 'Noto Sans TC', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    background: var(--card);
+    border-bottom: 2px solid var(--accent);
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-icon { font-size: 28px; }
+  .header-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+  }
+  .header-badge {
+    margin-left: auto;
+    background: rgba(245,194,24,0.12);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 16px;
+    padding: 12px 24px;
+    background: rgba(30,48,64,0.5);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; color: var(--sub); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-small { background: var(--blue); }
+  .dot-large { background: var(--accent2); }
+  .dot-nine  { background: var(--purple); }
+  .dot-seven { background: var(--green); }
+
+  /* Search */
+  .search-bar {
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .search-input {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'Noto Sans TC', sans-serif;
+    padding: 8px 14px;
+    width: 220px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--muted); }
+
+  /* Tabs */
+  .tabs-wrapper {
+    padding: 0 24px;
+    overflow-x: auto;
+  }
+  .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid var(--border);
+    min-width: max-content;
+  }
+  .tab {
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    background: none;
+    font-family: 'Noto Sans TC', sans-serif;
+    transition: all 0.2s;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .tab:hover { color: var(--text); background: rgba(245,194,24,0.05); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+
+  /* Panels */
+  .panel { display: none; padding: 20px 24px; }
+  .panel.active { display: block; }
+
+  /* Loading / Error */
+  .status-box {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .status-box .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Region group */
+  .region-group { margin-bottom: 28px; }
+  .region-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .region-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Cards grid */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+  }
+
+  /* Card */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.15s;
+  }
+  .card:hover { border-color: rgba(245,194,24,0.3); transform: translateY(-1px); }
+  .card-header {
+    padding: 10px 14px;
+    background: rgba(22,32,48,0.8);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-name { font-size: 15px; font-weight: 700; }
+  .card-note {
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--border);
+    padding: 2px 7px;
+    border-radius: 10px;
+  }
+  .card-body { padding: 10px 14px; }
+
+  /* Price row */
+  .price-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(30,48,64,0.6);
+  }
+  .price-row:last-child { border-bottom: none; }
+
+  .car-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-small  { background: rgba(52,152,219,0.15); color: #5DADE2; border: 1px solid rgba(52,152,219,0.3); }
+  .badge-large  { background: rgba(232,134,26,0.15); color: #F0A03A; border: 1px solid rgba(232,134,26,0.3); }
+  .badge-nine   { background: rgba(155,89,182,0.15); color: #BB8FCE; border: 1px solid rgba(155,89,182,0.3); }
+  .badge-seven  { background: rgba(46,204,113,0.15); color: #58D68D; border: 1px solid rgba(46,204,113,0.3); }
+
+  .price-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    text-align: right;
+  }
+  .price-note-small {
+    font-size: 10px;
+    color: var(--muted);
+    text-align: right;
+    margin-top: 1px;
+  }
+
+  /* All tab table */
+  .all-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .all-table th {
+    padding: 10px 14px;
+    text-align: left;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    background: rgba(22,32,48,0.5);
+    position: sticky;
+    top: 65px;
+  }
+  .all-table td {
+    padding: 9px 14px;
+    border-bottom: 1px solid rgba(30,48,64,0.5);
+    vertical-align: middle;
+  }
+  .all-table tr.data-row:hover td { background: rgba(245,194,24,0.03); }
+  .all-table tr.sep-row td {
+    padding: 6px 14px;
+    background: rgba(22,32,48,0.8);
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .all-table .price-cell {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .all-table .note-cell { color: var(--muted); font-size: 12px; }
+  .all-table .empty-cell { color: var(--border); }
+
+  @media (max-width: 600px) {
+    .header { padding: 14px 16px; }
+    .tabs-wrapper, .panel, .search-bar { padding-left: 16px; padding-right: 16px; }
+    .cards-grid { grid-template-columns: 1fr; }
+    .all-table th:nth-child(n+4),
+    .all-table td:nth-child(n+4) { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">✈️</div>
+  <div>
+    <div class="header-title">機場群 派單價格表</div>
+  </div>
+  <div class="header-badge">DIVA AT</div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="dot dot-small"></div>小車（一般轎車）</div>
+  <div class="legend-item"><div class="dot dot-large"></div>大車（五人休旅以上含七人）</div>
+  <div class="legend-item"><div class="dot dot-nine"></div>九人座</div>
+  <div class="legend-item"><div class="dot dot-seven"></div>七人座</div>
+</div>
+
+<div class="search-bar">
+  <input class="search-input" type="text" id="searchInput" placeholder="🔍 搜尋地區..." oninput="applySearch()">
+</div>
+
+<div class="tabs-wrapper">
+  <div class="tabs">
+    <button class="tab" onclick="switchTab('taipei')">台北市</button>
+    <button class="tab" onclick="switchTab('newtaipei')">新北市</button>
+    <button class="tab" onclick="switchTab('north')">北部縣市</button>
+    <button class="tab" onclick="switchTab('central')">中部縣市</button>
+    <button class="tab" onclick="switchTab('south')">南部縣市</button>
+    <button class="tab active" onclick="switchTab('all')">全部一覽</button>
+  </div>
+</div>
+
+<div class="panel" id="panel-taipei"></div>
+<div class="panel" id="panel-newtaipei"></div>
+<div class="panel" id="panel-north"></div>
+<div class="panel" id="panel-central"></div>
+<div class="panel" id="panel-south"></div>
+<div class="panel active" id="panel-all">
+  <div class="status-box"><div class="spinner"></div>載入中...</div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://fehzbysaxtwfzsmqymmk.supabase.co';
+const ANON_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlaHpieXNheHR3ZnpzbXF5bW1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwODU0NDEsImV4cCI6MjA5NDY2MTQ0MX0.s_vsJ2TBnliDM-p1ah5SrUGHT21Aqfir3-et7lkYjJI';
+
+// 每個 tab 顯示哪些縣市
+const TAB_REGIONS = {
+  taipei:    ['台北市'],
+  newtaipei: ['新北市'],
+  north:     ['基隆市', '宜蘭縣', '桃園市', '新竹市', '新竹縣'],
+  central:   ['苗栗縣', '台中市', '彰化縣', '南投縣'],
+  south:     ['台南市', '高雄市'],
+};
+
+// 全部一覽的顯示順序
+const REGION_ORDER = [
+  '台北市','新北市','基隆市','宜蘭縣',
+  '桃園市','新竹市','新竹縣','苗栗縣',
+  '台中市','彰化縣','南投縣','台南市','高雄市'
+];
+
+let allData = []; // 全部資料（id > 1）
+
+// ── 取得資料 ──────────────────────────────────────────
+async function loadData() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/airport_prices?id=gt.1&order=id`,
+      { headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    allData = await res.json();
+    renderAll();
+  } catch (e) {
+    document.querySelectorAll('.panel').forEach(p => {
+      p.innerHTML = `<div class="status-box">⚠️ 載入失敗：${e.message}</div>`;
+    });
+  }
+}
+
+// ── 渲染所有 tab ──────────────────────────────────────
+function renderAll() {
+  // 分 tab 的 card 視圖
+  Object.entries(TAB_REGIONS).forEach(([tabId, regions]) => {
+    const el = document.getElementById(`panel-${tabId}`);
+    el.innerHTML = renderCardView(regions);
+  });
+  // 全部一覽 table
+  document.getElementById('panel-all').innerHTML = renderTableView();
+}
+
+// ── Card 視圖（單一 tab）────────────────────────────
+function renderCardView(regions) {
+  const filtered = allData.filter(r => regions.includes(r.region));
+  if (!filtered.length) return '<div class="status-box">此分類尚無資料</div>';
+
+  // 依 region 分組
+  const grouped = {};
+  filtered.forEach(r => {
+    if (!grouped[r.region]) grouped[r.region] = [];
+    grouped[r.region].push(r);
+  });
+
+  return Object.entries(grouped).map(([region, rows]) => `
+    <div class="region-group">
+      <div class="region-label">${region}</div>
+      <div class="cards-grid">
+        ${rows.map(r => renderCard(r)).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderCard(r) {
+  const rows = [
+    r.small_car  ? `<div class="price-row"><span class="car-badge badge-small">小車</span><div><div class="price-val">${r.small_car}</div></div></div>` : '',
+    r.large_car  ? `<div class="price-row"><span class="car-badge badge-large">大車</span><div><div class="price-val">${r.large_car}</div></div></div>` : '',
+    r.nine_seat  ? `<div class="price-row"><span class="car-badge badge-nine">九人座</span><div><div class="price-val">${r.nine_seat}</div></div></div>` : '',
+    r.seven_seat ? `<div class="price-row"><span class="car-badge badge-seven">七人座</span><div><div class="price-val">${r.seven_seat}</div></div></div>` : '',
+  ].filter(Boolean).join('');
+
+  return `
+    <div class="card" data-district="${r.district}" data-region="${r.region}">
+      <div class="card-header">
+        <span class="card-name">${r.district}</span>
+        ${r.note ? `<span class="card-note">${r.note}</span>` : ''}
+      </div>
+      <div class="card-body">${rows || '<div style="color:var(--muted);font-size:12px;padding:4px 0">尚無資料</div>'}</div>
+    </div>`;
+}
+
+// ── Table 視圖（全部一覽）──────────────────────────
+function renderTableView() {
+  // 依 REGION_ORDER 排序
+  const sorted = [...allData].sort((a, b) => {
+    const ai = REGION_ORDER.indexOf(a.region);
+    const bi = REGION_ORDER.indexOf(b.region);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+
+  let html = `
+    <table class="all-table" id="allTable">
+      <thead><tr>
+        <th>地區</th><th>縣市</th>
+        <th>小車</th><th>大車</th><th>九人座</th><th>七人座</th><th>備註</th>
+      </tr></thead>
+      <tbody>`;
+
+  let lastRegion = null;
+  sorted.forEach(r => {
+    if (r.region !== lastRegion) {
+      html += `<tr class="sep-row"><td colspan="7">▍ ${r.region}</td></tr>`;
+      lastRegion = r.region;
+    }
+    const cell = (v) => v
+      ? `<td class="price-cell">${v}</td>`
+      : `<td class="empty-cell">—</td>`;
+    html += `
+      <tr class="data-row" data-district="${r.district}" data-region="${r.region}">
+        <td>${r.district}</td>
+        <td style="color:var(--muted);font-size:12px">${r.region}</td>
+        ${cell(r.small_car)}${cell(r.large_car)}${cell(r.nine_seat)}${cell(r.seven_seat)}
+        <td class="note-cell">${r.note || ''}</td>
+      </tr>`;
+  });
+
+  html += '</tbody></table>';
+  return html;
+}
+
+// ── Tab 切換 ─────────────────────────────────────────
+function switchTab(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`panel-${id}`).classList.add('active');
+  event.target.classList.add('active');
+  applySearch(); // 保持搜尋狀態
+}
+
+// ── 搜尋 ─────────────────────────────────────────────
+function applySearch() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+
+  // card
+  document.querySelectorAll('.card').forEach(c => {
+    const text = (c.dataset.district + c.dataset.region).toLowerCase();
+    c.style.display = (!q || text.includes(q)) ? '' : 'none';
+  });
+
+  // table rows
+  document.querySelectorAll('#allTable .data-row').forEach(row => {
+    const text = (row.dataset.district + row.dataset.region).toLowerCase();
+    row.style.display = (!q || text.includes(q)) ? '' : 'none';
+  });
+
+  // 隱藏空的 region group
+  document.querySelectorAll('.region-group').forEach(g => {
+    const visible = [...g.querySelectorAll('.card')].some(c => c.style.display !== 'none');
+    g.style.display = visible ? '' : 'none';
+  });
+}
+
+// ── 初始化 ───────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
