@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>松山機場 派單價格表</title>
+<style>
+  :root{
+    --bg:#0d1014; --panel:#161a20; --panel2:#1c2128; --border:#2a313b;
+    --text:#e8ecf1; --sub:#8b96a5; --accent:#4fd1c5; --accent2:#f0a868;
+    --small:#5b9bd5; --large:#e0734f; --nine:#9b7ede; --seven:#6fc279; --unspec:#7a8492;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{
+    padding:28px 16px 18px; text-align:center; border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg, rgba(79,209,197,0.08), transparent);
+  }
+  header h1{margin:0 0 6px; font-size:22px; letter-spacing:.5px;}
+  header h1 .plane{display:inline-block; transform:rotate(45deg); margin-right:6px;}
+  header p{margin:0; color:var(--sub); font-size:12.5px; line-height:1.6;}
+  .wrap{max-width:880px; margin:0 auto; padding:14px 14px 60px;}
+  .searchbar{
+    position:sticky; top:0; z-index:20; background:var(--bg); padding:12px 0 10px;
+  }
+  .searchbar input{
+    width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--border);
+    background:var(--panel); color:var(--text); font-size:15px; outline:none;
+  }
+  .searchbar input:focus{border-color:var(--accent);}
+  .tabs{display:flex; gap:6px; overflow-x:auto; padding:8px 0 4px; scrollbar-width:none;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab{
+    flex:0 0 auto; padding:6px 13px; border-radius:999px; font-size:12.5px;
+    background:var(--panel); border:1px solid var(--border); color:var(--sub); cursor:pointer;
+    white-space:nowrap; transition:.15s;
+  }
+  .tab.active{background:var(--accent); color:#0d1014; border-color:var(--accent); font-weight:600;}
+  .region-group{margin-top:22px;}
+  .region-label{
+    font-size:13px; color:var(--accent2); font-weight:700; margin:0 2px 10px;
+    letter-spacing:1px; text-transform:uppercase; display:flex; align-items:center; gap:8px;
+  }
+  .region-label::after{content:""; flex:1; height:1px; background:var(--border);}
+  .cards-grid{display:grid; grid-template-columns:1fr; gap:8px;}
+  @media(min-width:620px){.cards-grid{grid-template-columns:1fr 1fr;}}
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:13px 14px;
+  }
+  .card-header{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;}
+  .card-name{font-size:16px; font-weight:700;}
+  .card-note{font-size:11px; color:var(--sub);}
+  .price-row{display:flex; justify-content:space-between; align-items:center; padding:3px 0; font-size:13.5px;}
+  .car-badge{
+    font-size:11px; padding:2px 8px; border-radius:6px; font-weight:600; min-width:64px; text-align:center;
+  }
+  .badge-small{background:rgba(91,155,213,.18); color:var(--small);}
+  .badge-large{background:rgba(224,115,79,.18); color:var(--large);}
+  .badge-nine{background:rgba(155,126,222,.18); color:var(--nine);}
+  .badge-seven{background:rgba(111,194,121,.18); color:var(--seven);}
+  .badge-unspec{background:rgba(122,132,146,.18); color:var(--unspec);}
+  .price-range{font-weight:600; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+  .price-range .unit{font-weight:400; color:var(--sub); font-size:11px;}
+  .empty-state{text-align:center; color:var(--sub); padding:60px 20px; font-size:13.5px;}
+  .note-line{font-size:11px; color:var(--sub); margin-top:8px; padding-top:8px; border-top:1px dashed var(--border);}
+  .footer{text-align:center; color:var(--sub); font-size:11px; margin-top:30px; line-height:1.8;}
+  .footer a{color:var(--accent);}
+  .skeleton{opacity:.4;}
+  .legend{display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:10px; font-size:11px; color:var(--sub);}
+  .legend span{display:inline-flex; align-items:center; gap:4px;}
+  .legend i{width:9px; height:9px; border-radius:50%; display:inline-block;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="plane">✈️</span>松山機場 派單價格表</h1>
+  <p>資料來源：方圓機場接送 / 百世主群 群組紀錄整理　·　即時讀取 Supabase</p>
+  <div class="legend">
+    <span><i style="background:var(--small)"></i>小車</span>
+    <span><i style="background:var(--large)"></i>大車／休旅</span>
+    <span><i style="background:var(--nine)"></i>九人座</span>
+    <span><i style="background:var(--seven)"></i>七人座</span>
+    <span><i style="background:var(--unspec)"></i>未標明車型</span>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="searchbar">
+    <input type="text" id="searchInput" placeholder="搜尋地區，例如：板橋、新竹、南港...">
+    <div class="tabs" id="tabBar"></div>
+  </div>
+  <div id="content">
+    <div class="empty-state">載入中...</div>
+  </div>
+  <div class="footer">
+    共 <span id="rowCount">–</span> 個地區　·　資料表：songshan_airport_prices<br>
+    價格為歷史單據區間參考，實際派單請依當下行情與司機報價
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://fehzbysaxtwfzsmqymmk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlaHpieXNheHR3ZnpzbXF5bW1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwODU0NDEsImV4cCI6MjA5NDY2MTQ0MX0.s_vsJ2TBnliDM-p1ah5SrUGHT21Aqfir3-et7lkYjJI';
+const TABLE = 'songshan_airport_prices';
+
+const CAR_COLS = [
+  {key:'small_car', badge:'badge-small', fallback:'小車'},
+  {key:'large_car', badge:'badge-large', fallback:'大車'},
+  {key:'nine_seat', badge:'badge-nine', fallback:'九人座'},
+  {key:'seven_seat', badge:'badge-seven', fallback:'七人座'},
+  {key:'unspecified', badge:'badge-unspec', fallback:'未標明'},
+];
+
+let ALL_ROWS = [];
+let LABELS = {};
+let currentRegion = '全部';
+
+async function loadData(){
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=id.asc`, {
+      headers:{
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+      }
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const rows = await res.json();
+    if(!rows.length){
+      document.getElementById('content').innerHTML = '<div class="empty-state">目前資料表是空的</div>';
+      return;
+    }
+    // first row (id smallest) used as column-label row if district looks like a label, else just use defaults
+    const head = rows[0];
+    if(head.district && head.district.length <= 6 && /地區|區域|名稱/.test(head.district)){
+      LABELS = head;
+      ALL_ROWS = rows.slice(1);
+    } else {
+      ALL_ROWS = rows;
+    }
+    CAR_COLS.forEach(c=>{ if(LABELS[c.key]) c.label = LABELS[c.key]; else c.label = c.fallback; });
+    buildTabs();
+    render();
+    document.getElementById('rowCount').textContent = ALL_ROWS.length;
+  }catch(err){
+    document.getElementById('content').innerHTML =
+      `<div class="empty-state">資料載入失敗：${err.message}<br><br>請確認 Supabase 連線或稍後重試</div>`;
+  }
+}
+
+function buildTabs(){
+  const regions = ['全部', ...new Set(ALL_ROWS.map(r=>r.region).filter(Boolean))];
+  const bar = document.getElementById('tabBar');
+  bar.innerHTML = regions.map(r=>
+    `<div class="tab ${r===currentRegion?'active':''}" data-region="${r}">${r}</div>`
+  ).join('');
+  bar.querySelectorAll('.tab').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      currentRegion = t.dataset.region;
+      bar.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active', x===t));
+      render();
+    });
+  });
+}
+
+function priceCell(val){
+  if(!val) return '';
+  // split number(s) and trailing unit text if any, keep as-is but style the leading $ part
+  return `<span class="price-range">${val}</span>`;
+}
+
+function render(){
+  const q = (document.getElementById('searchInput').value || '').trim();
+  let rows = ALL_ROWS;
+  if(currentRegion !== '全部') rows = rows.filter(r => r.region === currentRegion);
+  if(q) rows = rows.filter(r => (r.district||'').includes(q) || (r.region||'').includes(q));
+
+  if(!rows.length){
+    document.getElementById('content').innerHTML = '<div class="empty-state">沒有符合的地區</div>';
+    return;
+  }
+
+  const grouped = {};
+  rows.forEach(r=>{
+    const reg = r.region || '其他';
+    (grouped[reg] = grouped[reg] || []).push(r);
+  });
+
+  let html = '';
+  Object.keys(grouped).forEach(reg=>{
+    html += `<div class="region-group"><div class="region-label">${reg}</div><div class="cards-grid">`;
+    grouped[reg].forEach(r=>{
+      let rowsHtml = '';
+      CAR_COLS.forEach(c=>{
+        if(r[c.key]){
+          rowsHtml += `<div class="price-row">
+            <span class="car-badge ${c.badge}">${c.label}</span>
+            ${priceCell(r[c.key])}
+          </div>`;
+        }
+      });
+      if(!rowsHtml){
+        rowsHtml = '<div class="price-row" style="color:var(--sub); font-size:12px;">尚無資料</div>';
+      }
+      html += `<div class="card">
+        <div class="card-header">
+          <span class="card-name">${r.district}</span>
+          <span class="card-note">${r.region||''}</span>
+        </div>
+        ${rowsHtml}
+        ${r.note ? `<div class="note-line">📝 ${r.note}</div>` : ''}
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  document.getElementById('content').innerHTML = html;
+}
+
+document.getElementById('searchInput').addEventListener('input', render);
+loadData();
+</script>
+
+</body>
+</html>
